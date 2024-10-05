@@ -29,29 +29,6 @@ export async function PUT(
 	}
 }
 
-// export async function PATCH(
-// 	req: NextRequest,
-// 	{ params }: { params: { id: string } }
-// ) {
-// 	try {
-// 		await connectMongo();
-// 		const id = params.id;
-// 		const data: IProduct = await req.json();
-// 		const updatedProduct = await ProductModel.findByIdAndUpdate(id, data, {
-// 			new: true,
-// 		});
-// 		return NextResponse.json(updatedProduct);
-// 	} catch (error) {
-// 		return NextResponse.json(
-// 			{
-// 				message: "Error patching product",
-// 				error: error,
-// 			},
-// 			{ status: HttpStatusCode.BadRequest }
-// 		);
-// 	}
-// }
-
 export async function DELETE(
 	req: NextRequest,
 	{ params }: { params: { id: string } }

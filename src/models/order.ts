@@ -1,17 +1,10 @@
 import mongoose, { model, models, Schema } from "mongoose";
 
-// export interface IOrder {
-// 	user: mongoose.Types.ObjectId;
-// 	product: mongoose.Types.ObjectId;
-// 	quantity: number;
-// 	warehouse: mongoose.Types.ObjectId;
-// 	paymentStatus: "pending" | "shipping" | "delivered" | "failed";
-// 	shippingStatus: "pending" | "shipping" | "delivered" | "failed";
-// }
 
-interface IOrderProduct {
+export interface IOrderProduct {
 	product: mongoose.Types.ObjectId;
 	quantity: number;
+	warehouse: mongoose.Types.ObjectId;
 }
 
 const OrderProductSchema = new Schema<IOrderProduct>({
@@ -25,12 +18,16 @@ const OrderProductSchema = new Schema<IOrderProduct>({
 		required: true,
 		min: 1,
 	},
+	warehouse: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: "Warehouse",
+		required: true,
+	}
 });
 
 export interface IOrder {
 	user: mongoose.Types.ObjectId;
 	products: IOrderProduct[];
-	warehouse: mongoose.Types.ObjectId;
 	orderStatus: "ordered" | "cancel" | "failed" | "refund";
 	paymentStatus: "pending" | "success" | "failed" | "refund";
 	shippingStatus: "pending" | "shipping" | "delivered" | "failed";
@@ -45,11 +42,6 @@ const OrderSchema = new Schema<IOrder>(
 		},
 		products: {
 			type: [OrderProductSchema],
-			required: true,
-		},
-		warehouse: {
-			type: mongoose.Schema.Types.ObjectId,
-			ref: "Warehouse",
 			required: true,
 		},
 		orderStatus: {

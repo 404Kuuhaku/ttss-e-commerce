@@ -4,8 +4,10 @@ import connectMongo from "@/util/mongodb/connect-mongo";
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { HttpStatusCode } from "axios";
-import OrderModel, { IOrder } from "@/models/order";
+import OrderModel, { IOrder, IOrderProduct } from "@/models/order";
 import ProductModel from "@/models/product";
+import UserModel from "@/models/user";
+import WarehouseModel, { IWarehouseProduct } from "@/models/warehouse";
 
 export async function GET() {
 	try {
@@ -13,7 +15,7 @@ export async function GET() {
 		const orders = await OrderModel.find()
 			.populate("user")
 			.populate("products.product")
-			.populate("warehouse");
+			.populate("products.warehouse");
 		return NextResponse.json(orders);
 	} catch (error) {
 		console.error("Error fetching orders:", error);
@@ -27,98 +29,87 @@ export async function GET() {
 	}
 }
 
-// export async function POST(req: NextRequest) {
-// 	try {
-// 		await connectMongo();
-// 		const data: IOrder = await req.json();
-
-// 		// check product stock
-// 		for (const orderProduct of data.products) {
-// 			const product = await ProductModel.findById(orderProduct.product);
-// 			if (!product || product.stock < orderProduct.quantity) {
-// 				return NextResponse.json(
-// 					{
-// 						message: `Not enough stock for product: ${product?.name}`,
-// 					},
-// 					{ status: HttpStatusCode.BadRequest }
-// 				);
-// 			}
-// 		}
-
-// 		// update product stock
-// 		for (const orderProduct of data.products) {
-// 			await ProductModel.findByIdAndUpdate(orderProduct.product, {
-// 				$inc: { stock: -orderProduct.quantity },
-// 			});
-// 		}
-
-// 		const newOrder = new OrderModel(data);
-// 		await newOrder.save();
-// 		return NextResponse.json(newOrder, { status: 201 });
-// 	} catch (error) {
-// 		return NextResponse.json(
-// 			{
-// 				message: "Error creating order",
-// 				error: error,
-// 			},
-// 			{ status: HttpStatusCode.BadRequest }
-// 		);
-// 	}
-// }
 
 export async function POST(req: NextRequest) {
-	let session;
 	try {
 		await connectMongo();
-		session = await mongoose.startSession();
-		session.startTransaction();
 
-		const data: IOrder = await req.json();
+		const { user, products } = await req.json();
 
-		// check product stock
-		for (const orderProduct of data.products) {
-			const product = await ProductModel.findById(orderProduct.product)
-				.session(session)
-				.select("name stock");
-			if (!product || product.stock < orderProduct.quantity) {
+		const userDoc = await UserModel.findById(user).select("location");
+		if (!userDoc) {
+			return NextResponse.json(
+				{ message: "User not found." },
+				{ status: HttpStatusCode.BadRequest }
+			);
+		}
+
+		const userLocation = userDoc.location;
+		// console.log(userLocation.coordinates);
+
+		const orderProducts: IOrderProduct[] = [];
+
+		for (const product of products) {
+			const nearestWarehouse = await WarehouseModel.findOne({
+				location: {
+					$nearSphere: {
+						$geometry: {
+							type: "Point",
+							coordinates: userLocation.coordinates,
+						},
+						$maxDistance: 5000000,
+					},
+				},
+				products: {
+					$elemMatch: {
+						product: product.product,
+						stock: { $gte: product.quantity },
+					},
+				},
+			}).populate("products.product");
+
+			if (!nearestWarehouse) {
 				return NextResponse.json(
 					{
-						message: `Not enough stock for product: ${product?.name}`,
+						message: `No nearby warehouse has enough stock for product: ${product.product}`,
 					},
 					{ status: HttpStatusCode.BadRequest }
 				);
 			}
+
+			orderProducts.push({
+				product: product.product,
+				quantity: product.quantity,
+				warehouse: nearestWarehouse._id,
+			});
+
+			await WarehouseModel.updateOne(
+				{
+					_id: nearestWarehouse._id,
+					"products.product": product.product,
+				},
+				{ $inc: { "products.$.stock": -product.quantity } }
+			);
 		}
 
-		// update product stock
-		for (const orderProduct of data.products) {
-			await ProductModel.findByIdAndUpdate(orderProduct.product, {
-				$inc: { stock: -orderProduct.quantity },
-			}).session(session);
-		}
+		const orderData: IOrder = {
+			user,
+			products: orderProducts,
+			orderStatus: "ordered",
+			paymentStatus: "pending",
+			shippingStatus: "pending",
+		};
 
-		const newOrder = new OrderModel(data);
-		// await newOrder.save();
-		await newOrder.save({ session });
-
-		await session.commitTransaction();
-		session.endSession();
+		const newOrder = new OrderModel(orderData);
+		await newOrder.save();
 
 		return NextResponse.json(newOrder, { status: 201 });
 	} catch (error) {
-		if (session && session.inTransaction()) {
-			await session.abortTransaction();
-		}
+		const errorMessage =
+			(error as { message?: string }).message || "Error creating order";
 		return NextResponse.json(
-			{
-				message: "Error creating order",
-				error: error,
-			},
-			{ status: HttpStatusCode.BadRequest }
+			{ message: errorMessage },
+			{ status: HttpStatusCode.InternalServerError }
 		);
-	} finally {
-		if (session) {
-			session.endSession();
-		}
 	}
 }

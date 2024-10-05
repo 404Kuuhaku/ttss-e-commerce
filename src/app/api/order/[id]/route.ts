@@ -17,7 +17,7 @@ export async function PUT(
 
 		const updatedOrder = await OrderModel.findByIdAndUpdate(id, data, {
 			new: true,
-			runValidators: true,
+			runValidators: true, // TODOS Test this again
 		});
 		return NextResponse.json(updatedOrder);
 	} catch (error) {

@@ -19,10 +19,10 @@ export default function SignUpPage() {
 			const email = data.get("email");
 			const password = data.get("password");
 
-			console.log({
-				email,
-				password,
-			});
+			// console.log({
+			// 	email,
+			// 	password,
+			// });
 
 			const result = await signIn("credentials", {
 				redirect: false,
@@ -35,7 +35,7 @@ export default function SignUpPage() {
 				return false;
 			}
 
-			router.push("/profile");
+			router.push("/");
 		} catch (error) {
 			console.log("error", error);
 		}

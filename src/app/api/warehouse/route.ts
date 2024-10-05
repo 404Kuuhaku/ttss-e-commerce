@@ -8,14 +8,14 @@ import WarehouseModel, { IWarehouse } from "@/models/warehouse";
 export async function GET() {
 	try {
 		await connectMongo();
+		const warehouses = await WarehouseModel.find().populate('products.product');
 		// const warehouses = await WarehouseModel.find();
-		const warehouses = await WarehouseModel.find().populate('products');
 		return NextResponse.json(warehouses);
-	} catch (error) {
+	} catch (error : unknown) {
 		return NextResponse.json(
 			{
 				message: "Error fetching warehouses",
-				error: error,
+				error: error.message,
 			},
 			{ status: 500 }
 		);

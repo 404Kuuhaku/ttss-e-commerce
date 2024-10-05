@@ -43,12 +43,12 @@ export async function POST(req: NextRequest) {
 	}
 }
 
-// export async function GET() {
-// 	try {
-// 		await connectMongo();
-// 		const users = await UserModel.find();
-// 		return NextResponse.json({ data: users });
-// 	} catch (error) {
-// 		return NextResponse.json({ error });
-// 	}
-// }
+export async function GET() {
+	try {
+		await connectMongo();
+		const users = await UserModel.find();
+		return NextResponse.json({ data: users });
+	} catch (error) {
+		return NextResponse.json({ error });
+	}
+}
