@@ -3,7 +3,9 @@
 import connectMongo from "@/util/mongodb/connect-mongo";
 import { NextRequest, NextResponse } from "next/server";
 import { HttpStatusCode } from "axios";
-import OrderModel, { IOrder } from "@/models/order";
+import OrderModel, { IOrder, IOrderProduct } from "@/models/order";
+import UserModel from "@/models/user";
+import { sendEmail } from "@/util/email/sendEmail";
 
 export async function PUT(
 	req: NextRequest,
@@ -19,6 +21,41 @@ export async function PUT(
 			new: true,
 			runValidators: true, // TODOS Test this again
 		});
+
+		const emailContent = `
+		<h2>Your Order Update</h2>
+		<p>Order ID: ${updatedOrder._id}</p>
+		<p>Status: ${updatedOrder.orderStatus}</p>
+		<p>Payment Status: ${updatedOrder.paymentStatus}</p>
+		<p>Shipping Status: ${updatedOrder.shippingStatus}</p>
+		<h3>Products:</h3>
+		<ul>
+			${updatedOrder.products
+				.map(
+					(product: IOrderProduct) => `
+				<li>Product ID: ${product.product}, Quantity: ${product.quantity}</li>
+			`
+				)
+				.join("")}
+		</ul>
+	`;
+
+		const userDoc = await UserModel.findById(updatedOrder?.user).select(
+			"email"
+		);
+		if (!userDoc) {
+			return NextResponse.json(
+				{ message: "User not found." },
+				{ status: HttpStatusCode.BadRequest }
+			);
+		}
+		await sendEmail(
+			userDoc.email,
+			"Order Updated",
+			`Your order with ID: ${id} has been updated.`,
+			emailContent
+		);
+
 		return NextResponse.json(updatedOrder);
 	} catch (error) {
 		return NextResponse.json(

@@ -8,14 +8,16 @@ import WarehouseModel, { IWarehouse } from "@/models/warehouse";
 export async function GET() {
 	try {
 		await connectMongo();
-		const warehouses = await WarehouseModel.find().populate('products.product');
+		const warehouses = await WarehouseModel.find().populate(
+			"products.product"
+		);
 		// const warehouses = await WarehouseModel.find();
 		return NextResponse.json(warehouses);
-	} catch (error : unknown) {
+	} catch (error: unknown) {
 		return NextResponse.json(
 			{
 				message: "Error fetching warehouses",
-				error: error.message,
+				error: error instanceof Error ? error.message : "Unknown error",
 			},
 			{ status: 500 }
 		);
@@ -39,4 +41,3 @@ export async function POST(req: NextRequest) {
 		);
 	}
 }
-

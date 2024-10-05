@@ -7,6 +7,7 @@ import { HttpStatusCode } from "axios";
 import OrderModel, { IOrder, IOrderProduct } from "@/models/order";
 import UserModel from "@/models/user";
 import WarehouseModel from "@/models/warehouse";
+import { sendEmail } from "@/util/email/sendEmail";
 
 export async function GET() {
 	try {
@@ -36,8 +37,12 @@ export async function POST(req: NextRequest) {
 		await connectMongo();
 		const { user, products } = await req.json();
 
+		// const userDoc = await UserModel.findById(user)
+		// 	.select("location")
+		// 	.session(session);
+
 		const userDoc = await UserModel.findById(user)
-			.select("location")
+			.select("location email")
 			.session(session);
 		if (!userDoc) {
 			await session.abortTransaction();
@@ -116,6 +121,32 @@ export async function POST(req: NextRequest) {
 		};
 
 		const newOrder = new OrderModel(orderData);
+
+		const emailContent = `
+		<h2>Your Order Confirmation</h2>
+		<p>Order ID: ${newOrder._id}</p>
+		<p>Status: ${newOrder.orderStatus}</p>
+		<p>Payment Status: ${newOrder.paymentStatus}</p>
+		<p>Shipping Status: ${newOrder.shippingStatus}</p>
+		<h3>Products:</h3>
+		<ul>
+			${newOrder.products
+				.map(
+					(product: IOrderProduct) => `
+				<li>Product ID: ${product.product}, Quantity: ${product.quantity}</li>
+			`
+				)
+				.join("")}
+		</ul>
+	`;
+
+		await sendEmail(
+			userDoc.email,
+			"Order Created",
+			`Your order with ID: ${newOrder._id} has been created.`,
+			emailContent
+		);
+
 		await newOrder.save({ session });
 
 		await session.commitTransaction();
