@@ -1,4 +1,4 @@
-import mongoose, { model, models, Schema } from "mongoose";
+import { model, models, Schema } from "mongoose";
 
 export interface IUser {
 	email: string;
@@ -50,5 +50,5 @@ const UserSchema = new Schema<IUser>(
 
 UserSchema.index({ location: "2dsphere" });
 
-const UserModel = mongoose.models.User || mongoose.model("User", UserSchema);
+const UserModel = models.User || model("User", UserSchema);
 export default UserModel;
